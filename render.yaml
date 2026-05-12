@@ -8,3 +8,7 @@ services:
     envVars:
       - key: AIVEN_POSTGRES
         sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_TRANSLATION_MODEL
+        value: gpt-5.1

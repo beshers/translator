@@ -11,30 +11,34 @@ using translator.Models;
 namespace translator.Services;
 
 /// <summary>
-/// Translation service implementation using LibreTranslate API.
+/// Translation service. Uses the cloud API when TRANSLATOR_API_URL is set, otherwise falls back to LibreTranslate.
 /// </summary>
 public class TranslationService : ITranslationService
 {
     private readonly HttpClient _httpClient;
+    private readonly bool _useCloudApi;
     private const string ApiBaseUrl = "https://api.libretranslate.de";
 
     private static readonly Lazy<IReadOnlyList<Language>> SupportedLanguages =
         new(InitializeSupportedLanguages);
 
-    /// <summary>
-    /// Initializes a new instance of the TranslationService class.
-    /// </summary>
     public TranslationService()
     {
+        var cloudApiUrl = Environment.GetEnvironmentVariable("TRANSLATOR_API_URL");
+
         _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(30)
         };
+
+        if (!string.IsNullOrWhiteSpace(cloudApiUrl) &&
+            Uri.TryCreate(cloudApiUrl, UriKind.Absolute, out var cloudApiBaseAddress))
+        {
+            _httpClient.BaseAddress = cloudApiBaseAddress;
+            _useCloudApi = true;
+        }
     }
 
-    /// <summary>
-    /// Translates text from source language to target language asynchronously.
-    /// </summary>
     public async Task<TranslationResult> TranslateAsync(
         string text,
         string sourceLanguage,
@@ -48,7 +52,12 @@ public class TranslationService : ITranslationService
 
         try
         {
-            var request = new TranslateRequest
+            if (_useCloudApi)
+            {
+                return await TranslateWithCloudApiAsync(text, sourceLanguage, targetLanguage, cancellationToken);
+            }
+
+            var request = new LibreTranslateRequest
             {
                 Q = text,
                 Source = sourceLanguage,
@@ -64,7 +73,7 @@ public class TranslationService : ITranslationService
             response.EnsureSuccessStatusCode();
 
             var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var result = JsonSerializer.Deserialize<TranslateResponse>(jsonContent) ?? new TranslateResponse();
+            var result = JsonSerializer.Deserialize<LibreTranslateResponse>(jsonContent) ?? new LibreTranslateResponse();
 
             return new TranslationResult
             {
@@ -85,14 +94,30 @@ public class TranslationService : ITranslationService
         }
     }
 
-    /// <summary>
-    /// Gets the list of supported languages.
-    /// </summary>
     public IReadOnlyList<Language> GetSupportedLanguages() => SupportedLanguages.Value;
 
-    /// <summary>
-    /// Initializes the list of supported languages.
-    /// </summary>
+    private async Task<TranslationResult> TranslateWithCloudApiAsync(
+        string text,
+        string sourceLanguage,
+        string targetLanguage,
+        CancellationToken cancellationToken)
+    {
+        var request = new CloudTranslateRequest(sourceLanguage, targetLanguage, text);
+        var response = await _httpClient.PostAsJsonAsync("api/translate", request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<CloudTranslateResponse>(cancellationToken);
+
+        return new TranslationResult
+        {
+            TranslatedText = result?.TranslatedText ?? string.Empty,
+            SourceLanguage = sourceLanguage,
+            TargetLanguage = targetLanguage,
+            OriginalText = text,
+            Timestamp = DateTime.UtcNow
+        };
+    }
+
     private static IReadOnlyList<Language> InitializeSupportedLanguages()
     {
         return new List<Language>
@@ -110,10 +135,7 @@ public class TranslationService : ITranslationService
         }.AsReadOnly();
     }
 
-    /// <summary>
-    /// Request model for LibreTranslate API.
-    /// </summary>
-    private class TranslateRequest
+    private class LibreTranslateRequest
     {
         [JsonPropertyName("q")]
         public string Q { get; set; } = string.Empty;
@@ -128,12 +150,21 @@ public class TranslationService : ITranslationService
         public string Format { get; set; } = "text";
     }
 
-    /// <summary>
-    /// Response model from LibreTranslate API.
-    /// </summary>
-    private class TranslateResponse
+    private class LibreTranslateResponse
     {
         [JsonPropertyName("translatedText")]
         public string? TranslatedText { get; set; }
     }
+
+    private sealed record CloudTranslateRequest(
+        string SourceLanguageCode,
+        string TargetLanguageCode,
+        string SourceText);
+
+    private sealed record CloudTranslateResponse(
+        string OriginalText,
+        string TranslatedText,
+        string SourceLanguage,
+        string TargetLanguage,
+        string Source);
 }

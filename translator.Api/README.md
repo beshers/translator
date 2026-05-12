@@ -8,6 +8,7 @@ Rotate the Aiven password if it was pasted into chat or source control, then set
 
 ```powershell
 $env:AIVEN_POSTGRES="Host=pg-302f58a7-besher-d002.h.aivencloud.com;Port=21304;Database=defaultdb;Username=avnadmin;Password=<NEW_ROTATED_PASSWORD>;SSL Mode=Require;"
+$env:OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
 dotnet run --project translator.Api
 ```
 
@@ -22,6 +23,19 @@ $env:AIVEN_POSTGRES="Host=pg-302f58a7-besher-d002.h.aivencloud.com;Port=21304;Da
 - `GET /health`
 - `GET /api/translations`
 - `POST /api/translations`
+- `POST /api/translate`
+
+`POST /api/translate` checks Aiven first. If the same source text, source language, and target language already exist, the API returns the saved translation. If not, it calls OpenAI, stores the new translation in Aiven, and returns it.
+
+Example translate body:
+
+```json
+{
+  "sourceLanguageCode": "en",
+  "targetLanguageCode": "de",
+  "sourceText": "Hello"
+}
+```
 
 Example POST body:
 
@@ -46,8 +60,9 @@ This repository includes a root `Dockerfile` and `render.yaml` for Render.
 Host=pg-302f58a7-besher-d002.h.aivencloud.com;Port=21304;Database=defaultdb;Username=avnadmin;Password=<NEW_ROTATED_PASSWORD>;SSL Mode=Require;
 ```
 
-4. Deploy the service.
-5. Open:
+4. Set the environment variable `OPENAI_API_KEY` in Render.
+5. Deploy the service.
+6. Open:
 
 ```text
 https://your-render-service.onrender.com/health

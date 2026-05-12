@@ -20,7 +20,6 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ITranslationService _translationService;
     private readonly IThemeService _themeService;
     private readonly IClipboardService _clipboardService;
-    private readonly ITranslationHistoryService _translationHistoryService;
     private CancellationTokenSource? _translationCancellationTokenSource;
 
     [ObservableProperty]
@@ -81,7 +80,6 @@ public partial class MainWindowViewModel : ObservableObject
         _translationService = new TranslationService();
         _themeService = new ThemeService();
         _clipboardService = new ClipboardService();
-        _translationHistoryService = new ApiTranslationHistoryService();
 
         InitializeLanguages();
         InitializeTheme();
@@ -187,12 +185,6 @@ public partial class MainWindowViewModel : ObservableObject
             IsConnected = true;
             OnPropertyChanged(nameof(StatusText));
 
-            await _translationHistoryService.SaveAsync(
-                sourceSnapshot,
-                result.TranslatedText,
-                sourceLanguageModel,
-                targetLanguageModel,
-                currentRequest.Token);
         }
         catch (OperationCanceledException)
         {

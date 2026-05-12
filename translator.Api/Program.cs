@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using translator.Api.Data;
 using translator.Api.Models;
+using translator.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+builder.Services.AddSingleton<IAiTranslationService, OpenAiTranslationService>();
 
 builder.Services.AddCors(options =>
 {
@@ -71,6 +73,78 @@ app.MapGet("/api/translations", async (AppDbContext db, CancellationToken cancel
     return Results.Ok(records);
 });
 
+app.MapPost("/api/translate", async (
+    TranslateRequest request,
+    AppDbContext db,
+    IAiTranslationService aiTranslationService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.SourceText) ||
+        string.IsNullOrWhiteSpace(request.SourceLanguageCode) ||
+        string.IsNullOrWhiteSpace(request.TargetLanguageCode))
+    {
+        return Results.BadRequest("Source text and language codes are required.");
+    }
+
+    var sourceText = request.SourceText.Trim();
+    var sourceLanguageCode = request.SourceLanguageCode.Trim();
+    var targetLanguageCode = request.TargetLanguageCode.Trim();
+
+    if (sourceLanguageCode.Equals(targetLanguageCode, StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Ok(new TranslateResponse(
+            sourceText,
+            sourceText,
+            sourceLanguageCode,
+            targetLanguageCode,
+            "same-language"));
+    }
+
+    var cachedRecord = await db.TranslationRecords
+        .AsNoTracking()
+        .Where(record =>
+            record.SourceLanguageCode == sourceLanguageCode &&
+            record.TargetLanguageCode == targetLanguageCode &&
+            record.SourceText == sourceText)
+        .OrderByDescending(record => record.CreatedAtUtc)
+        .FirstOrDefaultAsync(cancellationToken);
+
+    if (cachedRecord is not null)
+    {
+        return Results.Ok(new TranslateResponse(
+            cachedRecord.SourceText,
+            cachedRecord.TranslatedText,
+            cachedRecord.SourceLanguageCode,
+            cachedRecord.TargetLanguageCode,
+            "database"));
+    }
+
+    var translatedText = await aiTranslationService.TranslateAsync(
+        sourceText,
+        sourceLanguageCode,
+        targetLanguageCode,
+        cancellationToken);
+
+    var record = new TranslationRecord
+    {
+        SourceLanguageCode = sourceLanguageCode,
+        TargetLanguageCode = targetLanguageCode,
+        SourceText = sourceText,
+        TranslatedText = translatedText,
+        CreatedAtUtc = DateTimeOffset.UtcNow
+    };
+
+    db.TranslationRecords.Add(record);
+    await db.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new TranslateResponse(
+        sourceText,
+        translatedText,
+        sourceLanguageCode,
+        targetLanguageCode,
+        "ai"));
+});
+
 app.MapPost("/api/translations", async (
     CreateTranslationRecordRequest request,
     AppDbContext db,
@@ -112,3 +186,15 @@ public sealed record CreateTranslationRecordRequest(
     string TargetLanguageCode,
     string SourceText,
     string TranslatedText);
+
+public sealed record TranslateRequest(
+    string SourceLanguageCode,
+    string TargetLanguageCode,
+    string SourceText);
+
+public sealed record TranslateResponse(
+    string OriginalText,
+    string TranslatedText,
+    string SourceLanguage,
+    string TargetLanguage,
+    string Source);

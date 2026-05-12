@@ -4,6 +4,8 @@ obj/
 .idea/
 .vscode/
 .publish-check/
+.build-check-api/
+.build-check-desktop/
 *.user
 *.suo
 *.log

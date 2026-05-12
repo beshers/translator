@@ -69,6 +69,16 @@ app.MapGet("/health", () => Results.Ok(new
     timestamp = DateTimeOffset.UtcNow
 }));
 
+app.MapGet("/api/config-status", (IConfiguration configuration) => Results.Ok(new
+{
+    databaseConfigured = !string.IsNullOrWhiteSpace(
+        configuration.GetConnectionString("AivenPostgres") ?? configuration["AIVEN_POSTGRES"]),
+    openAiConfigured = !string.IsNullOrWhiteSpace(configuration["OPENAI_API_KEY"]),
+    model = string.IsNullOrWhiteSpace(configuration["OPENAI_TRANSLATION_MODEL"])
+        ? "gpt-5.1"
+        : configuration["OPENAI_TRANSLATION_MODEL"]
+}));
+
 app.MapGet("/api/translations", async (AppDbContext db, CancellationToken cancellationToken) =>
 {
     var records = await db.TranslationRecords

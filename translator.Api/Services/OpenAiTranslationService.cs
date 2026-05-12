@@ -4,24 +4,15 @@ namespace translator.Api.Services;
 
 public sealed class OpenAiTranslationService : IAiTranslationService
 {
-    private readonly ChatClient _chatClient;
+    private readonly string? _apiKey;
+    private readonly string _model;
 
     public OpenAiTranslationService(IConfiguration configuration)
     {
-        var apiKey = configuration["OPENAI_API_KEY"];
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException(
-                "Missing AI configuration. Set OPENAI_API_KEY in Render environment variables.");
-        }
-
-        var model = configuration["OPENAI_TRANSLATION_MODEL"];
-        if (string.IsNullOrWhiteSpace(model))
-        {
-            model = "gpt-5.1";
-        }
-
-        _chatClient = new ChatClient(model, apiKey);
+        _apiKey = configuration["OPENAI_API_KEY"];
+        _model = string.IsNullOrWhiteSpace(configuration["OPENAI_TRANSLATION_MODEL"])
+            ? "gpt-5.1"
+            : configuration["OPENAI_TRANSLATION_MODEL"]!;
     }
 
     public async Task<string> TranslateAsync(
@@ -30,6 +21,13 @@ public sealed class OpenAiTranslationService : IAiTranslationService
         string targetLanguageCode,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            throw new InvalidOperationException(
+                "Missing AI configuration. Set OPENAI_API_KEY in Render environment variables.");
+        }
+
+        var chatClient = new ChatClient(_model, _apiKey);
         var messages = new ChatMessage[]
         {
             new SystemChatMessage(
@@ -38,7 +36,7 @@ public sealed class OpenAiTranslationService : IAiTranslationService
                 $"Source language: {sourceLanguageCode}\nTarget language: {targetLanguageCode}\nText:\n{sourceText}")
         };
 
-        var completion = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
+        var completion = await chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
         var translatedText = completion.Value.Content.FirstOrDefault()?.Text?.Trim();
 
         if (string.IsNullOrWhiteSpace(translatedText))

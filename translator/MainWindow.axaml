@@ -1,0 +1,243 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:translator.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="720"
+        x:Class="translator.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Universal Translator"
+        WindowStartupLocation="CenterScreen"
+        Width="1200"
+        Height="720"
+        MinWidth="900"
+        MinHeight="560"
+        Background="{DynamicResource AppBackgroundBrush}">
+
+    <DockPanel Background="{DynamicResource AppBackgroundBrush}">
+        <Border DockPanel.Dock="Top"
+                Classes="app-header"
+                Padding="28,18">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Universal Translator"
+                               Classes="app-title" />
+                    <TextBlock Text="Fast multilingual translation with live feedback"
+                               Classes="app-subtitle" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Classes="icon-button"
+                        Command="{Binding ToggleThemeCommand}"
+                        ToolTip.Tip="Toggle dark and light mode"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="Theme" FontSize="13" FontWeight="SemiBold" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom"
+                Classes="status-bar"
+                Padding="28,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Ellipse Width="8"
+                         Height="8"
+                         Fill="{Binding IsConnected, Converter={StaticResource BoolToStatusBrushConverter}}"
+                         VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Margin="10,0,0,0"
+                           Text="{Binding StatusText}"
+                           Classes="secondary"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           Text="{Binding SelectedTargetLanguage.NativeName, StringFormat='Target: {0}'}"
+                           Classes="secondary"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom"
+                IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                Classes="error-panel"
+                Padding="28,14">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Translation error"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource ErrorBrush}"
+                           FontSize="13" />
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="{DynamicResource ErrorBrush}"
+                           TextWrapping="Wrap"
+                           FontSize="13" />
+            </StackPanel>
+        </Border>
+
+        <Grid Margin="28"
+              RowDefinitions="Auto,*"
+              RowSpacing="18">
+            <Border Classes="hero-strip"
+                    Padding="22,18">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Translate as you type"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                        <TextBlock Text="Choose languages, write naturally, and copy the result when it is ready."
+                                   Classes="secondary" />
+                    </StackPanel>
+                    <ProgressBar Grid.Column="1"
+                                 Classes="pill-progress"
+                                 Width="160"
+                                 VerticalAlignment="Center"
+                                 IsVisible="{Binding IsTranslating}"
+                                 IsIndeterminate="True" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto,*"
+                  ColumnSpacing="18">
+                <Border Grid.Column="0"
+                        Classes="translator-panel"
+                        Padding="20">
+                    <Grid RowDefinitions="Auto,*,Auto"
+                          RowSpacing="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="From"
+                                           Classes="section-label" />
+                                <ComboBox ItemsSource="{Binding SupportedLanguages}"
+                                          SelectedItem="{Binding SelectedSourceLanguage}"
+                                          MinWidth="220">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Flag}" />
+                                                <TextBlock Text="{Binding Name}" />
+                                                <TextBlock Text="{Binding NativeName}" Classes="secondary" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <Button Grid.Column="1"
+                                    Command="{Binding CopySourceTextCommand}"
+                                    Classes="ghost"
+                                    Content="Copy"
+                                    VerticalAlignment="Bottom"
+                                    IsEnabled="{Binding SourceText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        </Grid>
+
+                        <TextBox Grid.Row="1"
+                                 x:Name="SourceTextBox"
+                                 Text="{Binding SourceText}"
+                                 PlaceholderText="Type or paste text here..."
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top" />
+
+                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding SourceText.Length, StringFormat='{}{0} characters'}"
+                                       Classes="secondary"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding ClearSourceTextCommand}"
+                                    Classes="quiet"
+                                    Content="Clear" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                            Spacing="12"
+                            VerticalAlignment="Center">
+                    <Button Command="{Binding SwapLanguagesCommand}"
+                            Classes="round accent"
+                            ToolTip.Tip="Swap languages and text">
+                        <TextBlock Text="Swap"
+                                   FontSize="13"
+                                   FontWeight="SemiBold" />
+                    </Button>
+                    <Button Command="{Binding TranslateTextCommand}"
+                            Classes="round outlined"
+                            ToolTip.Tip="Translate now">
+                        <TextBlock Text="Go"
+                                   FontSize="13"
+                                   FontWeight="SemiBold" />
+                    </Button>
+                </StackPanel>
+
+                <Border Grid.Column="2"
+                        Classes="translator-panel featured"
+                        Padding="20">
+                    <Grid RowDefinitions="Auto,*,Auto"
+                          RowSpacing="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="To"
+                                           Classes="section-label" />
+                                <ComboBox ItemsSource="{Binding SupportedLanguages}"
+                                          SelectedItem="{Binding SelectedTargetLanguage}"
+                                          MinWidth="220">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Flag}" />
+                                                <TextBlock Text="{Binding Name}" />
+                                                <TextBlock Text="{Binding NativeName}" Classes="secondary" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <Button Grid.Column="1"
+                                    Command="{Binding CopyTranslatedTextCommand}"
+                                    Classes="accent"
+                                    Content="Copy"
+                                    VerticalAlignment="Bottom"
+                                    IsEnabled="{Binding TranslatedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        </Grid>
+
+                        <Grid Grid.Row="1">
+                            <TextBox x:Name="TargetTextBox"
+                                     Text="{Binding TranslatedText}"
+                                     PlaceholderText="Your translation will appear here..."
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     VerticalContentAlignment="Top"
+                                     FlowDirection="{Binding SelectedTargetLanguage.IsRtl, Converter={StaticResource BoolToFlowDirectionConverter}}"
+                                     TextAlignment="{Binding SelectedTargetLanguage.IsRtl, Converter={StaticResource BoolToTextAlignmentConverter}}" />
+
+                            <Border Classes="loading-scrim"
+                                    IsVisible="{Binding IsTranslating}">
+                                <StackPanel HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="12">
+                                    <ProgressBar Classes="loading-ring"
+                                                 IsIndeterminate="True"
+                                                 Width="170" />
+                                    <TextBlock Text="Translating..."
+                                               Classes="secondary"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding TranslatedText.Length, StringFormat='{}{0} characters'}"
+                                       Classes="secondary"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding SelectedTargetLanguage.Name}"
+                                       Classes="language-pill" />
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

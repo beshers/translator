@@ -1,0 +1,27 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:utils="using:translator.Utils"
+             x:Class="translator.App"
+             RequestedThemeVariant="Default">
+    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://translator/Resources/Themes.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Value Converters -->
+            <utils:BoolToFlowDirectionConverter x:Key="BoolToFlowDirectionConverter" />
+            <utils:BoolToTextAlignmentConverter x:Key="BoolToTextAlignmentConverter" />
+            <utils:StringIsNotEmptyConverter x:Key="StringIsNotEmptyConverter" />
+            <utils:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+            <utils:BoolToStatusBrushConverter x:Key="BoolToStatusBrushConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://translator/Resources/AppStyles.axaml" />
+    </Application.Styles>
+</Application>

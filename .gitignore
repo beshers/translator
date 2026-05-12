@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+.idea/
+.vscode/
+.publish-check/
+*.user
+*.suo
+*.log
+*.rar
+*.zip
+*.7z
+
+# Local secrets and environment files
+.env
+appsettings.*.local.json

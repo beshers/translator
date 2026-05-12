@@ -55,6 +55,13 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("TranslatorClients");
 
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "translator.Api",
+    status = "online",
+    endpoints = new[] { "/health", "/api/translate", "/api/translations" }
+}));
+
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
@@ -119,11 +126,30 @@ app.MapPost("/api/translate", async (
             "database"));
     }
 
-    var translatedText = await aiTranslationService.TranslateAsync(
-        sourceText,
-        sourceLanguageCode,
-        targetLanguageCode,
-        cancellationToken);
+    string translatedText;
+
+    try
+    {
+        translatedText = await aiTranslationService.TranslateAsync(
+            sourceText,
+            sourceLanguageCode,
+            targetLanguageCode,
+            cancellationToken);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Problem(
+            title: "AI translation is not configured or failed.",
+            detail: ex.Message,
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            title: "AI translation failed.",
+            detail: app.Environment.IsDevelopment() ? ex.ToString() : ex.Message,
+            statusCode: StatusCodes.Status502BadGateway);
+    }
 
     var record = new TranslationRecord
     {
